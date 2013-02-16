@@ -1,0 +1,626 @@
+<!--
+ This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<html>
+<title> MHacks RTS </title>
+<head>
+<script type="application/javascript">
+
+
+(function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelRequestAnimationFrame = window[vendors[x]+
+          'CancelRequestAnimationFrame'];
+    } 
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); }, 
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+}())
+
+function Vector(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+function Planet(mass, x, y, speed_x, speed_y, color) {
+	this.mass = mass;
+	this.pos = new Vector(x, y);
+	this.speed = new Vector(speed_x, speed_y);
+	this.color = color;
+	this.pic = randomInt(1,num_planet_pics);
+	this.shot = false;
+	this.exploding = false;
+	this.timer = shot_time + 9; // 14 total - 5 frames are for the shot animation, 9 are for the explosion animation
+}
+
+function Shot(x, y, time) {
+	this.x = x;
+	this.y = y;
+	this.time = time;
+	this.drawn = false;
+}
+
+function Cross_hairs(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+var planets, stars, explosions, shot, timer, screen_width, screen_height, cross_hairs, planets_to_remove, i, j, k, nick, planet_to_add;
+var num_planet_pics = 13;
+var gravity_constant = 0.02;
+var star_gravity_constant = 0.0001;
+var show_paths = false;
+var frame_rate = 30;
+var num_clusters = 2;
+var num_planets = 20;
+var circular_arrangement = true;
+var min_planet_mass = 5;
+var max_planet_mass = 12;
+var min_cluster_radius = 5;
+var max_cluster_radius = 50;
+var giant_planet_mass = 40;
+var zoom_level = 1;
+var shot_time = 12;
+var origin = new Vector(0,0);
+var imgs;
+
+// variables for drawing
+var len = 10, len2 = 30, len3 = 50, len4 = 5, c_x, c_y;
+var shot, x_change, y_change, slope, left_x_start, y_start, right_x_start, pos_x, pos_y, ctx, winW, winH, cross_hair_pos, x_dist, y_dist;
+var planet_pos_x, planet_pos_y, theta, radius, mass, center_x, center_y, slope, pic, img, explosion_pic, snd, expl_sound, blob_sound, paused = false;
+
+function set_size() {
+	if (document.body && document.body.offsetWidth) {
+	 winW = document.body.offsetWidth;
+	 winH = document.body.offsetHeight;
+	}
+	if (document.compatMode=='CSS1Compat' &&
+		document.documentElement &&
+		document.documentElement.offsetWidth ) {
+		winW = document.documentElement.offsetWidth;
+		winH = document.documentElement.offsetHeight;
+	}
+	if (window.innerWidth && window.innerHeight) {
+		winW = window.innerWidth;
+		winH = window.innerHeight;
+	}
+	screen_width = winW - 30;
+	screen_height = winH - 30;
+	
+	snd = new Audio("laser.ogg");
+	expl_sound = new Audio("explosion.ogg");
+	blob_sound = new Audio("blob.ogg");
+	document.getElementById("space_canvas").setAttribute("width", screen_width);
+	document.getElementById("space_canvas").setAttribute("height", screen_height);
+}
+
+function initialize_universe() {
+	var test_canvas = document.createElement("canvas"); //try and create sample canvas element
+	var canvascheck=(test_canvas.getContext)? true : false;
+	if( canvascheck == true){
+			document.getElementById("header_span").innerHTML = "<canvas style=\"cursor:none;\" onmouseup=\"mouse_up(event)\"" + 
+			"onmousemove=\"update_cross_hair_pos(event)\" onmousedown=\"create_mouse_planet(event)\" id=\"space_canvas\" width=\"1000\" height=\"600\"></canvas>";
+	}
+	else{
+		document.getElementById("header_span").innerHTML = "<h2>Hello There</h2>";
+	}
+	
+	set_size();
+	if (show_paths) {
+		document.getElementById("space_canvas").setAttribute("style", "");
+	}
+	planets = new Array();
+	stars = new Array();
+	explosions = new Array();
+	planet_to_add = 0;
+	cross_hairs = new Cross_hairs(-1, -1);
+	imgs = new Array();
+	for (i = 0; i <= num_planet_pics; i++){
+		imgs[i] = new Image();
+		imgs[i].src = "coord" + i + ".png";
+	}
+	explosion_pic = new Image();
+	explosion_pic.src = "explosion.png";
+	
+	//calculating random polar coordinate, to create circular arrangement of starting planets
+	for (j = 0 ; j < num_clusters; j++) {
+		center_x =  randomInt(100, screen_width - 100);
+		center_y =  randomInt(100, screen_height- 100);
+		for (i = 0; i < Math.floor(num_planets/num_clusters); i++) {
+			if (circular_arrangement) {
+				radius = randomInt(min_cluster_radius, max_cluster_radius);
+				theta = randomDouble(0, 2 * Math.PI);
+				pos_x = center_x + radius * Math.cos(theta);
+				pos_y = center_y + radius * Math.sin(theta);
+			}
+			else{
+				pos_x = randomInt(0, screen_width);
+				pos_y = randomInt(0, screen_height);
+			}
+			//mass = 2;
+			mass = randomInt(min_planet_mass, max_planet_mass);
+			planets.push(new Planet(mass, pos_x, pos_y, 0, 0,
+					"rgb(" + randomInt(30, 255) + "," + randomInt(30, 255) + "," + randomInt(30, 255) + ")"));
+		}
+	}
+	//planet at center of screen
+	//planets.push(new Planet(5, screen_width / 2, screen_height / 2, 0, 0, "rgb(100,100,100)"));
+	
+	stars.push(new Planet(200, screen_width/2, screen_height/2,  0, 0,"rgb(0,0,0)"));
+	var pos_vector, magnitude;
+	var max_radius = Math.max(screen_width, screen_height) /4;
+	for (i = 0; i < 200; i++) {
+		radius = randomInt(10 , max_radius);
+		theta = randomDouble(0, 2 * Math.PI);
+		pos_x = screen_width/2 + radius * Math.cos(theta);
+		pos_y = screen_height/2 + radius * Math.sin(theta);
+		mass = randomDouble(.25, 1);
+		
+		pos_vector = new Vector(-(screen_height/2 - pos_y), screen_width/2 - pos_x);
+		magnitude = Math.sqrt(Math.pow(screen_height/2 - pos_y, 2) + Math.pow(screen_width/2 - pos_x, 2));  
+		pos_vector = vector_scalar_mult(vector_scalar_mult(pos_vector, 1/magnitude),0.085);
+		stars.push(new Planet(mass, pos_x, pos_y,pos_vector.x, pos_vector.y, "rgb(255,255,255)"));
+	}
+
+	stars.push(new Planet(mass, screen_width/2 + 50, screen_height/2 , pos_vector.x, pos_vector.y, "rgb(255,255,255)", 1));
+	timer = setTimeout("move_planets()", frame_rate * 10);
+}
+
+function randomInt(a, b) {
+	return Math.floor((Math.random() * b)) + a; 
+}
+
+function randomDouble(a, b) {
+	return Math.random() * b + a;
+}
+
+function dot_product(a, b) {
+	return a.x * b.x + a.y * b.y;
+}
+
+function normal(a, b) {
+	var subtracted = vector_sub(a, b);
+	return vector_scaler_mult(subtracted, 1 / magnitude(subtracted));
+}
+
+function vector_scalar_mult(vector, r) {
+	return new Vector(vector.x * r, vector.y * r);
+}
+
+function magnitude(vector) {
+	return Math.sqrt(Math.pow(vector.x, 2) + Math.pow(vector.y, 2));
+}
+
+function vector_sub(a, b) {
+	return new Vector(a.x - b-x, a.y - b.y );
+}
+
+function calculate_new_speeds(planet1, planet2, G) {
+	var force = G * ( planet1.mass * planet2.mass) / dist(planet1, planet2);
+	var x_frac = x_fraction(planet1, planet2);
+	var prev_speed_x = planet1.speed.x;
+	var prev_speed_y = planet1.speed.y;	
+	planet1.speed.x = planet1.speed.x + (force / planet1.mass) * x_frac * x_dir(planet1, planet2);
+	planet1.speed.y = planet1.speed.y + (force / planet1.mass) * (1-x_frac) * y_dir(planet1, planet2);
+}
+
+function move_planets() {
+	draw_space();
+	if ( paused ){
+		window.requestAnimationFrame(move_planets);
+		return;
+	}
+	// loop through all of the planets that are currently exploding
+	for (i = 0; i < planets.length; i++) {
+		// don't move planets that are exploding
+		//if (planets[i].exlpoding == false){
+			planets[i].pos.x = planets[i].pos.x + planets[i].speed.x;
+			planets[i].pos.y = planets[i].pos.y + planets[i].speed.y;
+		//}
+		if (planets[i].shot){
+			planets[i].timer--;
+			if (planets[i].timer == 9){
+				planets[i].exploding = true;
+				expl_sound.currentTime = 0;
+				expl_sound.play();
+			}
+			if (planets[i].timer == 0){
+				planets.splice(i, 1);
+				i--;
+			}
+		}
+
+	}
+	if ( planet_to_add ){
+		planet_to_add.mass += 7;
+	}
+	for (i = 0; i < stars.length; i++) {
+
+		stars[i].pos.x += stars[i].speed.x;
+		stars[i].pos.y += stars[i].speed.y;
+	}
+	// calculate acceleration due to gravity between all planets
+	for (i = 0; i < planets.length; i++) {
+		for (j = 0; j < planets.length; j++) {
+			if ( i != j && dist(planets[i], planets[j]) > 1) {
+				calculate_new_speeds(planets[i], planets[j], gravity_constant);
+			}
+		}
+	}
+	
+	// calculate acceleration due to gravity between all stars
+	for ( i  = 1; i < stars.length; i++) {
+		/*
+		for (j = 0; j < stars.length; j++) {
+			if ( i != j && dist(stars[i], stars[j]) > 2) {
+				calculate_new_speeds(stars[i], stars[j], star_gravity_constant);
+			}
+		}
+		*/
+		//calculate gravity between a start and the dark matter in the center of the screen
+		calculate_new_speeds(stars[i], stars[0], star_gravity_constant);
+	}
+	// update shot animation
+	if (shot != null) {
+		shot.time--;
+		if (shot.time == 0) {
+			shot = null;
+			// planet now keeps track of the time for the shot as well, so it will turn into an explosion at the right time
+		}
+	}
+	// move the view
+	var left_movement_border = 0.45 * screen_width;
+	if (cross_hairs.x < left_movement_border) {
+		origin.x += 10 * (left_movement_border - cross_hairs.x)/left_movement_border;
+	}
+	var right_movement_border = screen_width - 0.45 * screen_width;
+	if (cross_hairs.x > right_movement_border) {
+		origin.x -= 10 * (cross_hairs.x - right_movement_border)/(screen_width - right_movement_border);
+	}
+	var top_movement_border = 0.45 * screen_height;
+	if (cross_hairs.y < top_movement_border) {
+		origin.y += 10 * (top_movement_border - cross_hairs.y)/top_movement_border;
+	}
+	var bottom_movement_border = screen_height - 0.45 * screen_height;
+	if (cross_hairs.y > bottom_movement_border) {
+		origin.y -= 10 * (cross_hairs.y - bottom_movement_border)/(screen_height - bottom_movement_border);
+	}
+	
+	/*
+	// detect collisionsviewport
+	var outer_length = planets.length;
+	var inner_length = planets.length;
+	//var to_add = new Array();
+	var to_remove = new Array();i
+	var v_n_1, v_n_2;
+	for (i = 0; i < planets.length; i++) {
+		inner_length = outer_length;
+		for (j = 0; j < planets.length; j++) {
+			if ( i != j ) {
+				if (dist(planets[i], planets[j]) < planets[i].mass + planets[j].mass
+						&& to_remove.indexOf(planets[i]) < 0 && to_remove.indexOf(planets[j]) < 0) {
+						//&& planets[i].mass > 4 && planets[j].mass > 4) {
+					
+					//planets[i].speed.x = -1 * planets[i].speed.x;
+					//planets[i].speed.y = -1 * planets[i].speed.y;
+					
+
+					//v_n_1 = dot_product(planets[i].speed, vector_scalar_mult())
+					to_remove.push(i);
+					to_remove.push(j);
+
+					/*
+					// for later, if bouncing enabled
+					var normal = new Vector();
+					var speed = (Math.abs(planets[i].speed.x) + Math.abs(planets[i].speed.y) +
+							Math.abs(planets[j].speed.x) + Math.abs(planets[j].speed.y))/4;
+					var mass = (planets[i].mass + planets[j].mass) / 4.0;
+					var x  = planets[i].pos.x;
+					var y = planets[i].pos.y;
+					to_remove.push(i);
+					to_remove.push(j);
+					to_add.push(new Planet(mass, x + speed * 30, y, speed, 0, "rgb(255,255,0)"));
+					to_add.push(new Planet(mass, x , y + speed * 30, 0, speed, "rgb(255,255,0)"));
+					to_add.push(new Planet(mass, x - speed * 30, y, -1 * speed, 0, "rgb(255,255,0)"));
+					to_add.push(new Planet(mass, x , y - speed * 30, 0, -1 * speed, "rgb(255,255,0)"));
+					
+				}
+			}
+		}
+	}
+	/*
+	for (i = 0; i < to_remove.length; i++) {
+		planets.splice(to_remove[i], 1);
+	}
+	for (i = 0; i < to_add.length; i++) {
+		//planets.push(to_add[i]);
+	}
+	//planets.concat(to_add);
+	*/
+	window.requestAnimationFrame(move_planets);
+}
+
+function x_fraction(planet1, planet2) {
+	return Math.abs( Math.abs(planet1.pos.x - planet2.pos.x) / (Math.abs( planet1.pos.x - planet2.pos.x) + Math.abs(planet1.pos.y - planet2.pos.y)));
+}
+
+function x_dir(planet1, planet2) {
+	if (planet1.pos.x > planet2.pos.x) {
+		return -1;
+	}
+	return 1;
+}
+
+function y_dir(planet1, planet2) {
+	if (planet1.pos.y > planet2.pos.y) {
+		return -1;
+	}
+	return 1;
+}
+
+function dist(planet1, planet2) {
+	return Math.sqrt( Math.pow(planet1.pos.x-planet2.pos.x, 2) + Math.pow(planet1.pos.y-planet2.pos.y, 2));
+}
+
+function distance(planet, x, y) {
+	return Math.sqrt( Math.pow(planet.pos.x - x, 2) + Math.pow(planet.pos.y - y, 2));
+}
+
+function draw_planet(planet, ctx, isStar) {
+	ctx.fillStyle = planet.color;
+	ctx.beginPath();
+	var planet_x_pos = planet.pos.x * zoom_level + origin.x; 
+	var planet_y_pos = planet.pos.y * zoom_level + origin.y;
+	if ( show_paths) {
+		ctx.arc( planet_x_pos, planet_y_pos, 1, 0, Math.PI * 2, true);
+	}
+	else if (isStar) {
+		ctx.arc( planet_x_pos, planet_y_pos, planet.mass * Math.pow(zoom_level, .85), 0, Math.PI * 2, true);
+	}	
+	else{
+		if (planet.exploding){
+			ctx.drawImage(explosion_pic, 267 * (9 - planet.timer), 0 , 267, 200, 
+				planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
+		}
+		else{
+			ctx.drawImage(imgs[planet.pic], planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
+			//ctx.arc( planet_x_pos, planet_y_pos, planet.mass * zoom_level, 0, Math.PI * 2, true);
+		}
+	}
+	ctx.closePath();
+	ctx.fill();
+}
+
+function grid_pt_to_screen(pt) {
+	return new Vector(pt.x * zoom_level + origin.x, pt.y * zoom_level + origin.y);
+}
+
+function screen_pt_to_grid(pt) {
+	return new Vector((pt.x - origin.x) / zoom_level, (pt.y - origin.y)	/ zoom_level);
+}
+
+function draw_space() {  
+	var canvas = document.getElementById("space_canvas");
+	if (canvas.getContext) {
+		ctx = canvas.getContext("2d");	
+		ctx.fillStyle = "rgb(0,0,0)";
+		if ( ! show_paths ) {
+			ctx.fillRect(0,0, screen_width, screen_height);
+		}
+		for (i = 1; i < stars.length; i++) {
+			draw_planet(stars[i], ctx, true);
+		}
+		for (i = 0; i < planets.length; i++) {
+			draw_planet(planets[i], ctx, false);
+		}
+		if (shot != null) {
+			ctx.lineWidth = shot.time / 2;
+			ctx.beginPath();
+			x_dist = shot.x - 0;
+			y_dist = screen_height - shot.y;
+			shot_total_sections = add_up_integers(shot_time);
+			x_change = shot.time * x_dist/shot_total_sections;
+			y_change = shot.time * y_dist/shot_total_sections;
+			slope = y_dist / x_dist;
+			left_x_start = 0 + add_up_integers(shot_time - shot.time) * x_dist/shot_total_sections;
+			y_start = screen_height - add_up_integers(shot_time - shot.time) * y_dist/shot_total_sections;
+			ctx.moveTo(left_x_start, y_start);
+			ctx.lineTo(left_x_start + x_change, y_start - y_change);
+
+			x_dist = screen_width - shot.x;
+			x_change = shot.time * x_dist/shot_total_sections;
+			right_x_start = screen_width - add_up_integers(shot_time - shot.time) * x_dist/shot_total_sections;
+			ctx.moveTo(right_x_start, y_start);
+			ctx.lineTo(right_x_start - x_change, y_start - y_change);
+			ctx.stroke();
+		}
+		if (cross_hairs != null && ! show_paths && cross_hairs.x > 0 && cross_hairs.y > 0) {
+			ctx.strokeStyle = "rgb(255, 85, 000)";
+			c_x = cross_hairs.x;
+			c_y = cross_hairs.y;
+			// draw the cross in the center
+			ctx.beginPath();
+			ctx.moveTo(c_x - len4, c_y);
+			ctx.lineTo(c_x, c_y - len4);
+			ctx.lineTo(c_x + len4, c_y);
+			ctx.lineTo(c_x, c_y + len4);
+			ctx.lineTo(c_x - len4, c_y);
+
+			ctx.moveTo(c_x - len, c_y);
+			ctx.lineTo(c_x - len4, c_y);
+			ctx.moveTo(c_x + len, c_y);
+			ctx.lineTo(c_x + len4, c_y);
+			ctx.moveTo(c_x, c_y - len);
+			ctx.lineTo(c_x, c_y - len4);
+			ctx.moveTo(c_x, c_y + len);
+			ctx.lineTo(c_x, c_y + len4);
+
+			ctx.stroke();
+
+			// draw the outside of the cross hairs
+			ctx.beginPath();
+			ctx.moveTo(c_x - len3, c_y - len);
+			ctx.lineTo(c_x - len2, c_y - len2);
+			ctx.lineTo(c_x - len, c_y - len2);
+			
+			ctx.moveTo(c_x + len3, c_y - len);
+			ctx.lineTo(c_x + len2, c_y - len2);
+			ctx.lineTo(c_x + len, c_y - len2);
+			
+			ctx.moveTo(c_x - len3, c_y + len);
+			ctx.lineTo(c_x - len2, c_y + len2);
+			ctx.lineTo(c_x - len, c_y + len2);
+			
+			ctx.moveTo(c_x + len3, c_y + len);
+			ctx.lineTo(c_x + len2, c_y + len2);
+			ctx.lineTo(c_x + len, c_y + len2);
+			ctx.stroke();
+		}
+		ctx.fillText("Coords left: " + planets.length, screen_width - 100, screen_height - 30);
+		//ctx.fillText("Zoom Level: " + zoom_level, 30, screen_height - 30);
+		//ctx.fillText("Origin: (" + origin.x + ", " + origin.y, 30, screen_height - 50);
+	}
+}
+
+function add_up_integers(num) {
+	var total = 0;
+	for (i = 1; i <= num; i++)
+		total += i;
+	return total;
+}
+
+function update_cross_hair_pos(event) {
+	if ( paused )
+		return;
+	x = event.offsetX?(event.offsetX):event.pageX-document.getElementById("space_canvas").offsetLeft;
+	y = event.offsetY?(event.offsetY):event.pageY-document.getElementById("space_canvas").offsetTop;
+	cross_hairs.x = x;
+	cross_hairs.y = y;
+	if ( planet_to_add ){
+		planet_to_add.x = x; planet_to_add.y = y;
+	}
+}
+
+function create_mouse_planet(event) {
+	if ( paused )
+		return;
+	update_cross_hair_pos(event);
+	var x_pos = event.offsetX?(event.offsetX):event.pageX-document.getElementById("space_canvas").offsetLeft;
+	var y_pos = event.offsetY?(event.offsetY):event.pageY-document.getElementById("space_canvas").offsetTop;
+	cross_hair_pos = new Vector(x_pos, y_pos);
+	var grid_cross_hair_pos = screen_pt_to_grid(cross_hair_pos);
+	x_pos = grid_cross_hair_pos.x;
+	y_pos = grid_cross_hair_pos.y;
+	for (i = planets.length - 1; i >= 0; i--) {
+		if ( shot == null && planets[i].shot == false && distance(planets[i], x_pos, y_pos) <= planets[i].mass + 5 / zoom_level) {
+			shot = new Shot(cross_hair_pos.x, cross_hair_pos.y, shot_time);
+			snd.currentTime = 0;
+			snd.play();
+			planets[i].shot = true;
+			return;
+		}
+	}
+	blob_sound.currentTime = 0;
+	blob_sound.play();
+	planet_to_add = new Planet(3, x_pos, y_pos, 0, 0,
+			"rgb(" + randomInt(30, 255) + "," + randomInt(30, 255) + "," + randomInt(30, 255) + ")")
+	planets.push(planet_to_add);
+}
+
+function mouse_up(){
+	if ( paused )
+		return;
+	planet_to_add = 0;
+}
+
+function toggle_pause(event) {
+	switch (event.keyCode){
+		case 80:
+			paused = ! paused;
+			break;
+	}
+}
+
+function mouse_scroll(e) {
+	// there are a number of issues with scrolling, right now I've just going to disable it
+	return;
+	
+	var evt=window.event || e //equalize event object
+	var delta=evt.detail? evt.detail*(-120) : evt.wheelDelta //check for detail first so Opera uses that instead of wheelDelta
+	// cross hair position adjustment, allows zooming to change based on where the mouse cursor is located
+	var x_zoom_weight, y_zoom_weight;
+	if (cross_hairs.x < screen_width / 2)
+		x_zoom_weight = 1 - ((screen_width / 2) - cross_hairs.x) / (screen_width / 2);
+	else
+		x_zoom_weight = 1 - (cross_hairs.x - (screen_width / 2))  / (screen_width / 2);
+	var grid_size;
+	// right now there is a bug where it always zooms relative to the center of the galaxy rather than the center of the current view
+	rate = .05;
+	if (delta > 0) {
+		if (zoom_level > 10)
+			return;
+		for (i = 0; i < delta/120; i++) {
+			grid_size = new Vector(screen_width * zoom_level, screen_height * zoom_level);
+			origin.x -= (screen_width) * (rate) * zoom_level;
+			origin.y -= (screen_height) * (rate) * zoom_level;
+			zoom_level *= (1 + rate);
+			//origin.x -= (screen_width * zoom_level - grid_size.x ) / 2;
+			//origin.y -= (screen_height * zoom_level - grid_size.y) / 2;
+			
+		}
+	}
+	if (delta < 0) {
+		if (zoom_level < 0.05)
+			return;
+		for (i = 0; i < Math.abs(delta/120); i++) {
+			grid_size = new Vector(screen_width * zoom_level, screen_height * zoom_level);
+			zoom_level *= 0.95;
+			origin.x += (grid_size.x - screen_width * zoom_level) / 2;
+			origin.y += (grid_size.y - screen_height * zoom_level) / 2;
+			//origin.x += zoom_out_origin_shift;
+			//origin.y += zoom_out_origin_shift * (screen_height / screen_width);
+		}
+	}
+}
+
+function page_load() {
+	var mousewheelevt=(/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel" //FF doesn't recognize mousewheel as of FF3.x
+		 
+	if (document.attachEvent) //if IE (and Opera depending on user setting)
+		document.attachEvent("on"+mousewheelevt, function(e) {mouse_scroll(e)}, false);
+	else if (document.addEventListener) //WC3 browsers
+		document.addEventListener(mousewheelevt, function(e) {mouse_scroll(e)}, false);
+	initialize_universe();
+}
+
+</script>      
+</head>
+<body style="overflow: hidden"  onload="page_load()" onkeydown="toggle_pause(event)">
+<span id="header_span"> </span>
+</body>
+</html>
