@@ -106,6 +106,10 @@ var WALKER = 1, SWIMMER = 2;
 // values for unit state
 var IDLE = 1, MOVING = 2, PATROLLING = 3, ATTACKING = 4, MOVE_TO_ATTACK = 5;
 
+// adjusting to do the flocking while moving every tick causes jitter, only apply it
+// every few ticks
+var FLOCKING_TIMER = 5;
+
 /*
  * Units will need to share some functionality, ability to move, attack and other state changes.
  * Will want to have a standard API for them to comunicate with the other elements of the game,
@@ -138,9 +142,9 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	this.player = player;
 	this.radius = radius;
 	this.selected = false;
-	this.waiting_to_move = false;
-	this.waiting_counter;
 	this.movement_group = false;
+	this.clustering_timer = 0;
+	this.velocity = false;
 
 	this.draw = function(ctx, game, player){
 		drawWorldObject(this, ctx, player, game, player.color);
@@ -152,40 +156,89 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	
 	this.update = function(){
 
+		speed = 1;
 		disable_normal_movement = false;
 		// move away from other units
 		p = this.player;	
 		if ( this.state == MOVING || this.state == MOVE_TO_ATTACK) {
-			// boid flocking algorithm
-			// http://gamedevelopment.tutsplus.com/tutorials/the-three-simple-rules-of-flocking-behaviors-alignment-cohesion-and-separation--gamedev-3444
-			for (var j = 0; j < this.movement_group.length; j++){
-				unit = this.movement_group[j];
-				if (this == unit)
-					continue;
-				if (distance(unit.loc, this.loc) < unit.radius + this.radius) {
-					this.move_away(unit, 1);
-					disable_normal_movement = true;
-					break;
+			this.set_velocity();
+			this.clustering_timer++;
+			if (this.clustering_timer % 20 % 2 == 0) {
+				// boid flocking algorithm
+				// http://gamedevelopment.tutsplus.com/tutorials/the-three-simple-rules-of-flocking-behaviors-alignment-cohesion-and-separation--gamedev-3444
+		
+				obstacle_avoidance = new Vector(0,0);
+				// loop through all world objects
+				// this would definitely be a good candidate for better performance collision detection 
+				
+				cumulative_direction = new Vector(0,0);
+				center_of_mass = new Vector(0,0);
+				neighbor_distance = new Vector(0,0);
+				// making adjustments towards/away from neighbors every tick causes jitter
+					
+				for (var j = 0; j < this.movement_group.length; j++){
+					unit = this.movement_group[j];
+					//if (this == unit)
+						//continue;
+					// hit a group member that is idle, stop moving
+					if (distance(unit.loc, this.loc) < 50) {
+						if (unit.state == IDLE) {
+							this.go_idle();
+							return;
+						}
+						cumulative_direction.add(unit.velocity);
+						center_of_mass.add(unit.loc)
+						neighbor_distance.x += unit.loc.x - this.loc.x;
+						neighbor_distance.y += unit.loc.y - this.loc.y;
+					}
+				}
+				if (this.movement_group.length > 1 ) {
+					cumulative_direction.scale( 1.0 / (this.movement_group.length));
+					center_of_mass.scale( 1.0 / (this.movement_group.length));
+					neighbor_distance.scale( 1.0 / (this.movement_group.length));
+					neighbor_distance.normalize();
+					center_of_mass.x -= this.loc.x;
+					center_of_mass.y -= this.loc.y;
+				}
+				cumulative_direction.normalize();
+				center_of_mass.normalize();
+				center_of_mass.scale(0.8)
+				neighbor_distance.scale(2);
+				flock_adjustment = new Vector(0,0);
+				flock_adjustment.x = neighbor_distance.x + cumulative_direction.x - center_of_mass.x;
+				flock_adjustment.y += neighbor_distance.y + cumulative_direction.y - center_of_mass.y;
+				if (flock_adjustment.mag() > 0.2) {
+					this.velocity.x += flock_adjustment.x;
+					this.velocity.y += flock_adjustment.y;
 				}
 			}
+			this.velocity.normalize();
+			this.velocity.x *= speed;
+			this.velocity.y *= speed;
+
 			if (! disable_normal_movement ) {
-				dist = this.move_towards(this.target, 2);
+				dist = this.move(this.target, -1, 2);
 				// update for reached destination
-				if (dist < 5) {
-					this.state = IDLE;
-					this.loc.x = this.target.x;
-					this.loc.y = this.target.y;
-					this.target = false;
+				if (dist < 10) {
+					this.go_idle();
 				}
 			}
 		}
+	}
 
-
+	this.go_idle = function() {
+		this.state = IDLE;
+		this.velocity.x = 0;
+		this.velocity.y = 0;
+		this.target = false;
 	}
 
 	this.move_to = function(dest) {
 		this.state = MOVING;
 		this.target = new Vector(dest.x, dest.y);
+		this.velocity = false;
+		this.clustering_timer = FLOCKING_TIMER;
+		this.set_velocity();
 	}
 	
 	this.move_towards = function(entity, speed) {
@@ -195,11 +248,23 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	this.move_away = function(entity, speed) {
 		return this.move(entity, 1, speed);
 	}
+	
+	this.set_velocity = function() {
+		//if (this.velocity == false) {
+			dist = distance(this.loc, this.target);
+			this.velocity = new Vector(0,0);
+			this.velocity.x = (this.loc.x - this.target.x) / dist;
+			this.velocity.y = (this.loc.y - this.target.y) / dist;
+		//}	
+	}
 
+	// entity - the outside target or repulsor, a vector
+	// direction - move towards (-1) or away from (1) the entity
+	// speed - rate of movement
 	this.move = function(entity, direction, speed) {
 		dist = distance(this.loc, this.target);
-		this.loc.x += direction * speed * (this.loc.x - this.target.x) / dist;
-		this.loc.y += direction * speed * (this.loc.y - this.target.y) / dist;
+		this.loc.x += direction * speed * this.velocity.x;
+		this.loc.y += direction * speed * this.velocity.y;
 		return dist;
 	}
 }

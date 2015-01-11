@@ -29,9 +29,14 @@ function draw_minimap(ctx, thisGame, player) {
             screen_size.x * minimap_dimensions.x, 
             screen_size.y * minimap_dimensions.y)
 	ctx.fillStyle = "rgb(230, 230, 255)";
+    // the size of the rectangle on the menu
     minimap = new Rect(0, screen_size.y - screen_size.y * minimap_dimensions.y,
                        screen_size.x * minimap_dimensions.x, 
                        screen_size.y * minimap_dimensions.y);
+
+    // calculate the size of the minimap, depending on the limiting factors of
+    // the ratio of width/height of the overall map and the minimap menu element
+
             
     ctx.fillRect(minimap.x, minimap.y, minimap.w, minimap.h);
 	for (var i = 0; i < thisGame.players.length; i++){

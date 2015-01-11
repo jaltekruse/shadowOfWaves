@@ -133,6 +133,14 @@ function initialize_water_world() {
 	p.mouse_pos.x = screen_size.x / 2; 
 	p.mouse_pos.y = screen_size.y / 2; 
 
+    // unit movement debugging
+    /*
+    x_vals = [677,158,572];
+    y_vals = [677,457,564] 
+    for (var i = 0; i < x_vals.length; i++) {
+		thisGame.players[player].units.push(new Unit(x_vals[i], y_vals[i], 10, WALKER, WORKER, MELEE, thisGame.players[player]));
+    }
+    */
 	var pos_x = 0, pos_y = 0, player = 0;
 	for (var i = 0; i < 100; i++) {
 		pos_x = randomInt(0, 1000);
@@ -150,7 +158,7 @@ function randomInt(a, b) {
 
 function frame(){
 	
-	for (var i = 0; i < thisGame.players.length; i++){
+	for (var i = 0; i < 1 /*thisGame.players.length */; i++){
 		for (var j = 0; j < thisGame.players[i].units.length; j++){
 			thisGame.players[i].units[j].update();
 		}

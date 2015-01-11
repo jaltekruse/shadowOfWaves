@@ -3,9 +3,27 @@ function Vector(x, y){
 	this.x = x;
 	this.y = y;
     this.normalize = function() {
-        mag = Math.sqrt(x*x + y*y);
-        this.x /= mag;
-        this.y /= mag;
+        mag = this.mag();
+        if (mag == 0) return;
+        this.x = this.x / mag;
+        this.y = this.y / mag;
+        return this;
+    }
+    this.mag = function() {
+        return Math.sqrt(this.x*this.x + this.y*this.y);
+    }
+    this.scale = function(val) {
+        this.x *= val;
+        this.y *= val;
+        return this;
+    }
+    this.subtract = function(v1) {
+        this.x -= v1.x;
+        this.y -= v1.y;
+    }
+    this.add = function(v1) {
+        this.x += v1.x;
+        this.y += v1.y;
     }
 }
 

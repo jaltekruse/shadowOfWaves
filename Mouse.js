@@ -55,11 +55,18 @@ function mouse_down(evt){
                 if ( ! unit_selected) {
                     movement_group = new Array();
                     p.movement_groups.push(movement_group);
+                    unit_selected = true;
                 }
-                unit_selected = true;
                 movement_group.push(unit);
                 unit.movement_group = movement_group;
                 unit.move_to(new Vector(x + p.origin.x, y + p.origin.y));
+            }
+        }
+        // temprorary debugging for 'center of mass' calculation
+        for (var j = 0; j < p.units.length; j++){
+            unit = p.units[j];
+            if (unit.selected) {
+                unit.update();
             }
         }
         console.log(movement_group);
