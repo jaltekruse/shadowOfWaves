@@ -47,13 +47,22 @@ function mouse_down(evt){
         p.selection.y = y + p.origin.y;
     } else if (evt.button == 2) { // right mouse button
         // update selected units
+        unit_selected = false;
+        movement_group = false;
         for (var j = 0; j < p.units.length; j++){
             unit = p.units[j];
             if (unit.selected) {
-                unit.state = MOVING;
-                unit.target = new Vector(x + p.origin.x, y + p.origin.y);
+                if ( ! unit_selected) {
+                    movement_group = new Array();
+                    p.movement_groups.push(movement_group);
+                }
+                unit_selected = true;
+                movement_group.push(unit);
+                unit.movement_group = movement_group;
+                unit.move_to(new Vector(x + p.origin.x, y + p.origin.y));
             }
         }
+        console.log(movement_group);
     }
 }
 function mouse_scroll(evt){

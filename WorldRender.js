@@ -29,9 +29,19 @@ function draw_minimap(ctx, thisGame, player) {
             screen_size.x * minimap_dimensions.x, 
             screen_size.y * minimap_dimensions.y)
 	ctx.fillStyle = "rgb(230, 230, 255)";
-    ctx.fillRect(0, screen_size.y - screen_size.y * minimap_dimensions.y, 
-            screen_size.x * minimap_dimensions.x, 
-            screen_size.y * minimap_dimensions.y)
+    minimap = new Rect(0, screen_size.y - screen_size.y * minimap_dimensions.y,
+                       screen_size.x * minimap_dimensions.x, 
+                       screen_size.y * minimap_dimensions.y);
+            
+    ctx.fillRect(minimap.x, minimap.y, minimap.w, minimap.h);
+	for (var i = 0; i < thisGame.players.length; i++){
+	    ctx.fillStyle = thisGame.players[i].color;
+        for (var j = 0; j < thisGame.players[i].units.length; j++){
+            obj = thisGame.players[i].units[j];
+	        ctx.fillRect( minimap.x + minimap_dimensions.x * (obj.loc.x ),
+                          minimap.y + minimap_dimensions.y * (obj.loc.y ), 2, 2 );
+        }
+    }
 }
 
 function draw_menu(ctx, thisGame, palyer) {

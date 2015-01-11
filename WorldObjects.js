@@ -89,6 +89,9 @@ function Player(x_origin, y_origin, color){
 	this.units = new Array();
 	this.selection = new Rect(-1,-1, 10, 10);
 	this.selection_status = new Vector(-10,-10);
+	// two dimensional array with a series of groups of units that are
+	// moving together, a unit should only ever be in one of the groups
+	this.movement_groups = new Array();
 }
 
 // types of units
@@ -135,6 +138,9 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	this.player = player;
 	this.radius = radius;
 	this.selected = false;
+	this.waiting_to_move = false;
+	this.waiting_counter;
+	this.movement_group = false;
 
 	this.draw = function(ctx, game, player){
 		drawWorldObject(this, ctx, player, game, player.color);
@@ -145,27 +151,41 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	}
 	
 	this.update = function(){
-		if (this.state == MOVING || MOVE_TO_ATTACK) {
-			dist = this.move_towards(this.target, 2);
-			// update for reached destination
-			if (dist < 5) {
-				this.state = IDLE;
-				this.loc.x = this.target.x;
-				this.loc.y = this.target.y;
-				this.target = false;
-			}
-		}
+
+		disable_normal_movement = false;
 		// move away from other units
 		p = this.player;	
-        for (var j = 0; j < p.units.length; j++){
-            unit = p.units[j];
-			if (this == unit)
-				continue;
-            if (distance(unit.loc, this.loc) < unit.radius + this.radius) {
-				this.move_away(unit, 2);	
-            }
-        }
+		if ( this.state == MOVING || this.state == MOVE_TO_ATTACK) {
+			// boid flocking algorithm
+			// http://gamedevelopment.tutsplus.com/tutorials/the-three-simple-rules-of-flocking-behaviors-alignment-cohesion-and-separation--gamedev-3444
+			for (var j = 0; j < this.movement_group.length; j++){
+				unit = this.movement_group[j];
+				if (this == unit)
+					continue;
+				if (distance(unit.loc, this.loc) < unit.radius + this.radius) {
+					this.move_away(unit, 1);
+					disable_normal_movement = true;
+					break;
+				}
+			}
+			if (! disable_normal_movement ) {
+				dist = this.move_towards(this.target, 2);
+				// update for reached destination
+				if (dist < 5) {
+					this.state = IDLE;
+					this.loc.x = this.target.x;
+					this.loc.y = this.target.y;
+					this.target = false;
+				}
+			}
+		}
 
+
+	}
+
+	this.move_to = function(dest) {
+		this.state = MOVING;
+		this.target = new Vector(dest.x, dest.y);
 	}
 	
 	this.move_towards = function(entity, speed) {

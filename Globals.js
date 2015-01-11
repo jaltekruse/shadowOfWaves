@@ -2,6 +2,11 @@
 function Vector(x, y){
 	this.x = x;
 	this.y = y;
+    this.normalize = function() {
+        mag = Math.sqrt(x*x + y*y);
+        this.x /= mag;
+        this.y /= mag;
+    }
 }
 
 function distance(v1, v2) {
