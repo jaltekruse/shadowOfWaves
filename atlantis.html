@@ -134,9 +134,9 @@ function initialize_water_world() {
 	p.mouse_pos.y = screen_size.y / 2; 
 
 	var pos_x = 0, pos_y = 0, player = 0;
-	for (var i = 0; i < 500; i++) {
-		pos_x = randomInt(0, map_size.x);
-		pos_y = randomInt(0, map_size.y);
+	for (var i = 0; i < 100; i++) {
+		pos_x = randomInt(0, 1000);
+		pos_y = randomInt(0, 1000);
 		player = randomInt(0, thisGame.players.length);
 		thisGame.players[player].units.push(new Unit(pos_x, pos_y, 10, WALKER, WORKER, MELEE, thisGame.players[player]));
 	}
@@ -173,7 +173,7 @@ function page_load() {
 
 </script>      
 </head>
-<body style="overflow: hidden"  onload="page_load()" onkeydown="key_down(event)">
+<body style="overflow: hidden" oncontextmenu="return false;" onload="page_load()" onkeydown="key_down(event)">
     <a style="float:right; padding:0.6em; width:2.6em; height:2.6em; cursor:pointer;" onclick="makeFullscreen();">Fullscreen</a>
 <span id="header_span"> </span>
 </body>

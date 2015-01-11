@@ -39,10 +39,22 @@ function mouse_up(evt){
 }
 
 function mouse_down(evt){
-	x = evt.offsetX?(evt.offsetX):evt.pageX-document.getElementById("game_canvas").offsetLeft;
-	y = evt.offsetY?(evt.offsetY):evt.pageY-document.getElementById("game_canvas").offsetTop;
-	p.selection.x = x + p.origin.x;
-	p.selection.y = y + p.origin.y;
+    x = evt.offsetX?(evt.offsetX):evt.pageX-document.getElementById("game_canvas").offsetLeft;
+    y = evt.offsetY?(evt.offsetY):evt.pageY-document.getElementById("game_canvas").offsetTop;
+    // left mouse button
+    if (evt.button == 0) {
+        p.selection.x = x + p.origin.x;
+        p.selection.y = y + p.origin.y;
+    } else if (evt.button == 2) { // right mouse button
+        // update selected units
+        for (var j = 0; j < p.units.length; j++){
+            unit = p.units[j];
+            if (unit.selected) {
+                unit.state = MOVING;
+                unit.target = new Vector(x + p.origin.x, y + p.origin.y);
+            }
+        }
+    }
 }
 function mouse_scroll(evt){
 

@@ -101,9 +101,13 @@ var MELEE = 2, DISTANCE = 3;
 var WALKER = 1, SWIMMER = 2;
 
 // values for unit state
-var STANDING = 1, MOVING = 2, PATROLLING = 3, ATTACKING = 4;
+var IDLE = 1, MOVING = 2, PATROLLING = 3, ATTACKING = 4, MOVE_TO_ATTACK = 5;
 
 /*
+ * Units will need to share some functionality, ability to move, attack and other state changes.
+ * Will want to have a standard API for them to comunicate with the other elements of the game,
+ * collision detection, delivering damage, impacting elements of the terrain/resources.
+ *
  * Unit features/states:
  * Shared by all units of same type, assume updates apply to existing units instantly:
  *      - attack damage (my have multiple attack types for one unit)
@@ -124,7 +128,8 @@ var STANDING = 1, MOVING = 2, PATROLLING = 3, ATTACKING = 4;
 		
 function Unit(x, y, radius, locomotion, type, attack_type, player){
 	this.loc = new Vector(x, y);
-    this.state = 0;
+    this.state = IDLE;
+	this.target = false;
 	this.type = type;
 	this.attack_type = attack_type;
 	this.player = player;
@@ -140,7 +145,42 @@ function Unit(x, y, radius, locomotion, type, attack_type, player){
 	}
 	
 	this.update = function(){
+		if (this.state == MOVING || MOVE_TO_ATTACK) {
+			dist = this.move_towards(this.target, 2);
+			// update for reached destination
+			if (dist < 5) {
+				this.state = IDLE;
+				this.loc.x = this.target.x;
+				this.loc.y = this.target.y;
+				this.target = false;
+			}
+		}
+		// move away from other units
+		p = this.player;	
+        for (var j = 0; j < p.units.length; j++){
+            unit = p.units[j];
+			if (this == unit)
+				continue;
+            if (distance(unit.loc, this.loc) < unit.radius + this.radius) {
+				this.move_away(unit, 2);	
+            }
+        }
 
+	}
+	
+	this.move_towards = function(entity, speed) {
+		return this.move(entity, -1, speed);
+	}
+
+	this.move_away = function(entity, speed) {
+		return this.move(entity, 1, speed);
+	}
+
+	this.move = function(entity, direction, speed) {
+		dist = distance(this.loc, this.target);
+		this.loc.x += direction * speed * (this.loc.x - this.target.x) / dist;
+		this.loc.y += direction * speed * (this.loc.y - this.target.y) / dist;
+		return dist;
 	}
 }
 
