@@ -94,16 +94,39 @@ function Player(x_origin, y_origin, color){
 // types of units
 var WORKER = 1, CRAB_ATTACKER = 2, FISH_ATTACKER = 3;
 
-// values for unit functions
-var GATHERER = 1, MELEE = 2, DISTANCE = 3;
+// values for attack type
+var MELEE = 2, DISTANCE = 3;
 
 // values for locomotion
-var GROUND = 1, SWIMMING = 2;
+var WALKER = 1, SWIMMER = 2;
 
-function Unit(x, y, radius, locomotion, type, func, player){
+// values for unit state
+var STANDING = 1, MOVING = 2, PATROLLING = 3, ATTACKING = 4;
+
+/*
+ * Unit features/states:
+ * Shared by all units of same type, assume updates apply to existing units instantly:
+ *      - attack damage (my have multiple attack types for one unit)
+ *      - defense/shield value
+ *      - max health
+ *      - ability to gather resources
+ *      - ability to attack walkers, swimmers or both
+ * 
+ * unique to a paricular instance of a unit:
+ *      - current health
+ *      - current state : moving, attacking, gathering, etc.
+ *          - almost always has an associated 'target' area or entity
+ *      - current position
+ *      - animation state (hopefully all handled in UI/rendering)
+ *          - might need to speed up overall animation for quicker attacking
+ *          - need to sync game/unit state changes like damage with the animation
+ */
+		
+function Unit(x, y, radius, locomotion, type, attack_type, player){
 	this.loc = new Vector(x, y);
+    this.state = 0;
 	this.type = type;
-	this.func = func;
+	this.attack_type = attack_type;
 	this.player = player;
 	this.radius = radius;
 	this.selected = false;
@@ -121,3 +144,7 @@ function Unit(x, y, radius, locomotion, type, func, player){
 	}
 }
 
+// TODO - finish, represents a range attack for 
+function RangeAttack(x, y, radius, locomotion, type, func, player){
+
+}

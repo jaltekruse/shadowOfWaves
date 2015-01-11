@@ -1,0 +1,47 @@
+Tasks:
+------
+- task menu
+    - create building
+- unit creation
+    - queue system, single building, maybe new buildings
+      for privledge to create units
+- unit movement
+    - collision dexteciton with map elements
+    - path finding
+- combat
+    - movement to enemy -> attacking
+    - attacking
+        - melee
+        - ranged
+            - varaible range
+            - animations
+- resource gathering
+    - selecting terrain elements to gather
+    - assocaite with workers
+- map
+    - create map elements
+        - terrain
+        - buildings
+- minimap
+    - fog of war
+- players
+    - select units *done*
+    - move units
+    - select structure 
+    - player status
+        - resources
+        - upgrades state
+
+- networking
+    - how the hell?
+    - trust clients for now?
+        - yes!
+    - clients report their own unit positions
+        - server might save at least last unit position and do
+          basic sanity check for cheating/teleporting
+    - state that needs to be synced
+        - units
+            - position
+            - action
+            - attributes (health)
+        - player 

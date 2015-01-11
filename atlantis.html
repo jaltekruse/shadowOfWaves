@@ -17,7 +17,16 @@
 <head> 
 	<script type="text/javascript" src="Globals.js"></script>
 	<script type="text/javascript" src="WorldObjects.js"></script>
-	<script type="text/javascript" src="GridStorage.js"></script>
+    <script type="text/javascript" src="GridStorage.js"></script>
+    <script type="text/javascript" src="Mouse.js"></script>
+    <script type="text/javascript" src="WorldRender.js"></script>
+    <style type="text/css">
+        #game_canvas:-webkit-full-screen  { width: 100% }
+        #game_canvas:-moz-full-screen     { width: 100% }
+        #game_canvas:-ms-full-screen      { width: 100% }
+        #game_canvas:-o-full-screen       { width: 100% }
+        #game_canvas:full-screen          { width: 100% }
+    </style>
 <script type="text/javascript">
 
 
@@ -67,92 +76,27 @@ function set_size() {
 	document.getElementById("game_canvas").setAttribute("height", screen_size.y);
 }
 
+// from - http://www.html5gamedevs.com/topic/7644-making-browser-fullscreen-solved/
+function makeFullscreen()
+{
+    var id = "game_canvas";
+    var el = document.getElementById(id);
+    if  (el.requestFullScreen      ) el.requestFullScreen();
+    else if (el.webkitRequestFullScreen) el.webkitRequestFullScreen();
+    else if (el.mozRequestFullScreen   ) el.mozRequestFullScreen();
+}
+
+
 function Game(){
 	this.players = new Array();
 	this.time = 0;
 }
 
-function mouse_up(evt){
-	p.selection.x = -1;
-	p.selection.y = -1;
-	p.selection.w = 1;
-	p.selection.h = 1;
-	p.selection_status.x = -10;
-	p.selection_status.y = -10;
-}
-
-function mouse_down(evt){
-	x = evt.offsetX?(evt.offsetX):evt.pageX-document.getElementById("game_canvas").offsetLeft;
-	y = evt.offsetY?(evt.offsetY):evt.pageY-document.getElementById("game_canvas").offsetTop;
-	p.selection.x = x + p.origin.x;
-	p.selection.y = y + p.origin.y;
-}
 
 function key_down(){
 
 }
 
-function mouse_scroll(evt){
-
-}
-
-function mouse_move(evt){
-	x = evt.offsetX?(evt.offsetX):evt.pageX-document.getElementById("game_canvas").offsetLeft;
-	y = evt.offsetY?(evt.offsetY):evt.pageY-document.getElementById("game_canvas").offsetTop;
-	p.mouse_pos.x = x;
-	p.mouse_pos.y = y;
-
-	// adjust the selection rectangle
-	var s =	p.selection;
-	if ( Math.abs(p.selection_status.x) != 1)
-	{// first time the mouse is moving after the mouse was pressed
-		if ( x + p.origin.x < s.x )
-			p.selection_status.x = -1;
-		else
-			p.selection_status.x = 1;
-		if ( y + p.origin.y < s.y )
-			p.selection_status.y = -1;
-		else
-			p.selection_status.y = 1;
-	}
-	if ( s.x > 0 && s.y > 0){
-		if (p.selection_status.x == 1){
-			s.w = x + p.origin.x - s.x;
-		}
-		else{
-			s.w += s.x - (x + p.origin.x);
-			s.x = x + p.origin.x;
-		}
-		if (p.selection_status.y == 1){
-			s.h = y + p.origin.y - s.y;
-		}
-		else{
-			s.h += s.y - (y + p.origin.y);
-			s.y = y + p.origin.y;
-		}
-		
-	}
-	if ( s.w < 0 ){
-		s.x = s.x + s.w;
-		s.w = Math.abs(s.w);
-		p.selection_status.x *= -1;
-	}
-	if ( s.h < 0 ){
-		s.y = s.y + s.h;
-		s.h = Math.abs(s.h);
-		p.selection_status.y *= -1;
-	}
-
-	// update selected units
-	if ( s.x > 0 && s.y > 0){
-		for (var j = 0; j < p.units.length; j++){
-			p.units[j].selected = false;
-			if ( intersectRect(p.units[j].collision_rect(), p.selection) ){
-				p.units[j].selected = true;
-			}
-		}
-	}
-}
 
 function initialize_water_world() {
 	var test_canvas = document.createElement("canvas"); //try and create sample canvas element
@@ -164,8 +108,21 @@ function initialize_water_world() {
 	else{
 		document.getElementById("header_span").innerHTML = "<h2>Hello There</h2>";
 	}
-	
-	set_size();
+
+    set_size();
+    if(window.attachEvent) {
+        window.attachEvent('onresize', function() {
+            set_size();     
+        });
+    }
+    else if(window.addEventListener) {
+            window.addEventListener('resize', function() {
+            set_size();     
+        }, true);
+    }
+    else {
+            //The browser does not support Javascript event binding
+    }
 	
 	thisGame = new Game();
 	thisGame.players.push(new Player(0, 0, "rgb(255, 0, 0)"));
@@ -176,15 +133,12 @@ function initialize_water_world() {
 	p.mouse_pos.x = screen_size.x / 2; 
 	p.mouse_pos.y = screen_size.y / 2; 
 
-	thisGame.players[0].units.push(new Unit(70, 50, 5, GROUND, WORKER, GATHERER, thisGame.players[0]));
-	thisGame.players[0].units.push(new Unit(30, 80, 5, GROUND, WORKER, GATHERER, thisGame.players[0]));
-	thisGame.players[1].units.push(new Unit(200, 50, 5, GROUND, WORKER, GATHERER, thisGame.players[1]));
 	var pos_x = 0, pos_y = 0, player = 0;
 	for (var i = 0; i < 500; i++) {
 		pos_x = randomInt(0, map_size.x);
 		pos_y = randomInt(0, map_size.y);
 		player = randomInt(0, thisGame.players.length);
-		thisGame.players[player].units.push(new Unit(pos_x, pos_y, 10, GROUND, WORKER, GATHERER, thisGame.players[player]));
+		thisGame.players[player].units.push(new Unit(pos_x, pos_y, 10, WALKER, WORKER, MELEE, thisGame.players[player]));
 	}
 	timer = setTimeout("frame()", frame_rate * 10);
 }
@@ -201,72 +155,10 @@ function frame(){
 			thisGame.players[i].units[j].update();
 		}
 	}
-
-	// Update view 
-	var speed = 20;
-	var movement_boarder = .15;
-	var left_movement_border = movement_boarder * screen_size.x;
-	var mp = p.mouse_pos;
-	var origin = p.origin;
-	if (mp.x < left_movement_border && origin.x > 0) {
-		origin.x -= speed * (left_movement_border - mp.x)/left_movement_border;
-	}
-	var right_movement_border = screen_size.x - movement_boarder * screen_size.x;
-	if (mp.x > right_movement_border && origin.x + screen_size.x < map_size.x) {
-		origin.x += speed * (mp.x - right_movement_border)/(screen_size.x - right_movement_border);
-	}
-	var top_movement_border = movement_boarder * screen_size.y;
-	if (mp.y < top_movement_border && origin.y > 0) {
-		origin.y -= speed * (top_movement_border - mp.y)/top_movement_border;
-	}
-	var bottom_movement_border = screen_size.y - movement_boarder * screen_size.y;
-	if (mp.y > bottom_movement_border && origin.y + screen_size.y < map_size.y ) {
-		origin.y += speed * (mp.y - bottom_movement_border)/(screen_size.y - bottom_movement_border);
-	}
-
-	// snap to edge map
-	if (origin.y < 0) origin.y = 0;
-	if (origin.y > map_size.y) origin.y = map_size.y - screen_size.y;
-	if (origin.x < 0) origin.x = 0;
-	if (origin.x > map_size.x) origin.x = map_size.x - screen_size.x;
-
-	draw_world();
+    updateViewEdgeMouseScroll();
+	drawWorld();
 
 	window.requestAnimationFrame(frame);
-}
-
-function intersectRect(r1, r2) {
-  return !(r2.x > r1.x + r1.w || 
-           r2.w + r2.x < r1.x || 
-           r2.y > r1.y + r1.h ||
-           r2.y + r2.h  < r1.y);
-}
-
-function draw_world(){
-	var canvas = document.getElementById("game_canvas");
-	if (canvas.getContext) {
-		ctx = canvas.getContext("2d");	
-
-		ctx.fillStyle = "rgb(230, 230, 255)";
-		ctx.fillRect(0,0, screen_size.x, screen_size.y);
-
-		for (var i = 0; i < thisGame.players.length; i++){
-			for (var j = 0; j < thisGame.players[i].units.length; j++){
-				thisGame.players[i].units[j].draw(ctx, thisGame, p);
-			}
-		}
-		draw_selection(ctx);
-	}
-	ctx.fillText("sel: " + p.selection.x + ", " + p.selection.y + ", " + p.selection.w + ", " + p.selection.h, 30, 500);
-}
-
-function draw_selection(ctx){
-	var s =	p.selection;
-	if ( s.x < 0 || s.y < 0){
-		return
-	}
-	ctx.strokeStyle = "rgb(0, 0, 0)";
-	ctx.strokeRect( s.x - p.origin.x , s.y - p.origin.y, s.w, s.h);
 }
 
 function page_load() {
@@ -282,6 +174,7 @@ function page_load() {
 </script>      
 </head>
 <body style="overflow: hidden"  onload="page_load()" onkeydown="key_down(event)">
+    <a style="float:right; padding:0.6em; width:2.6em; height:2.6em; cursor:pointer;" onclick="makeFullscreen();">Fullscreen</a>
 <span id="header_span"> </span>
 </body>
 </html>
