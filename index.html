@@ -404,12 +404,12 @@ function draw_planet(planet, ctx, isStar) {
 	}	
 	else{
 		if (planet.exploding){
-			ctx.drawImage(explosion_pic, 267 * (9 - planet.timer), 0 , 267, 200, 
-				planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
+			//ctx.drawImage(explosion_pic, 267 * (9 - planet.timer), 0 , 267, 200, 
+				//planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
 		}
 		else{
-			ctx.drawImage(imgs[planet.pic], planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
-			//ctx.arc( planet_x_pos, planet_y_pos, planet.mass * zoom_level, 0, Math.PI * 2, true);
+			//ctx.drawImage(imgs[planet.pic], planet_x_pos - planet.mass * zoom_level, planet_y_pos - planet.mass * zoom_level, planet.mass * 2  * zoom_level, planet.mass * 2  * zoom_level);
+			ctx.arc( planet_x_pos, planet_y_pos, planet.mass * zoom_level, 0, Math.PI * 2, true);
 		}
 	}
 	ctx.closePath();
